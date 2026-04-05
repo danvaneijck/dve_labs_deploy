@@ -1,0 +1,57 @@
+# Production Docker Compose — Pre-built Image from GHCR
+#
+# Prerequisites:
+#   - docker login ghcr.io
+#   - Traefik proxy must be running (provides the 'proxy' network)
+#   - .env with GMAIL_USER, GMAIL_APP_PASSWORD, and RECAPTCHA_SECRET
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "3"
+
+networks:
+  proxy:
+    external: true
+
+services:
+  dvelabs-web:
+    image: ghcr.io/danvaneijck/dve_labs_website/web:${WEB_TAG:-latest}
+    networks:
+      - proxy
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      # Static site — catch-all for dvelabs.nz except /api/*
+      - "traefik.http.routers.dvelabs.rule=(Host(`dvelabs.nz`) || Host(`www.dvelabs.nz`)) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.dvelabs.entrypoints=websecure"
+      - "traefik.http.routers.dvelabs.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dvelabs.middlewares=security-headers@file,gzip-compress@file"
+      - "traefik.http.services.dvelabs.loadbalancer.server.port=80"
+      # Redirect www to bare domain
+      - "traefik.http.routers.dvelabs-www.rule=Host(`www.dvelabs.nz`)"
+      - "traefik.http.routers.dvelabs-www.entrypoints=websecure"
+      - "traefik.http.routers.dvelabs-www.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dvelabs-www.middlewares=dvelabs-www-redirect"
+      - "traefik.http.middlewares.dvelabs-www-redirect.redirectregex.regex=^https://www\\.dvelabs\\.nz/(.*)"
+      - "traefik.http.middlewares.dvelabs-www-redirect.redirectregex.replacement=https://dvelabs.nz/$${1}"
+      - "traefik.http.middlewares.dvelabs-www-redirect.redirectregex.permanent=true"
+    logging: *default-logging
+
+  dvelabs-contact:
+    image: ghcr.io/danvaneijck/dve_labs_website/contact:${CONTACT_TAG:-latest}
+    networks:
+      - proxy
+    restart: unless-stopped
+    environment:
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+      - RECAPTCHA_SECRET=${RECAPTCHA_SECRET}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dvelabs-api.rule=Host(`dvelabs.nz`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dvelabs-api.entrypoints=websecure"
+      - "traefik.http.routers.dvelabs-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dvelabs-api.loadbalancer.server.port=3000"
+    logging: *default-logging
