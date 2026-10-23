@@ -17,7 +17,7 @@ networks:
 
 services:
   dvelabs-web:
-    image: ghcr.io/danvaneijck/dve_labs_website/web:${WEB_TAG:-sha-8501dad}
+    image: ghcr.io/danvaneijck/dve_labs_website/web:${WEB_TAG:-sha-6c2cd65}
     networks:
       - proxy
     restart: unless-stopped
@@ -40,7 +40,7 @@ services:
     logging: *default-logging
 
   dvelabs-contact:
-    image: ghcr.io/danvaneijck/dve_labs_website/contact:${CONTACT_TAG:-sha-8501dad}
+    image: ghcr.io/danvaneijck/dve_labs_website/contact:${CONTACT_TAG:-sha-6c2cd65}
     networks:
       - proxy
     restart: unless-stopped
